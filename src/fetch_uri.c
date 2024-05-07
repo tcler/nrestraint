@@ -230,9 +230,8 @@ http_archive_read_callback (gpointer user_data)
                 fetch_data->archive_entry_callback (strbegin,
                                                     fetch_data->user_data);
             }
-
-            fetch_data->match_cnt++;
         }
+        fetch_data->match_cnt++;
     } else {
         fetch_data->nonmatch_cnt++;
     }

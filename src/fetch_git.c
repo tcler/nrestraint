@@ -394,10 +394,9 @@ git_archive_read_callback (gpointer user_data)
             g_idle_add (archive_finish_callback, fetch_data);
             return FALSE;
         }
-
-        fetch_data->match_cnt++;
     }
 
+    fetch_data->match_cnt++;
     return TRUE;
 }
 
