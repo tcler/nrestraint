@@ -44,6 +44,10 @@
 #define TASK_FETCH_INTERVAL 20
 #define TASK_FETCH_RETRIES 30
 
+#ifndef PATH_MAX
+#define PATH_MAX 512
+#endif
+
 typedef enum {
     TASK_IDLE,
     TASK_FETCH,
@@ -84,6 +88,11 @@ typedef struct RstrntTask {
         gchar *package_name; // when TASK_FETCH_INSTALL_PACKAGE
         SoupURI *url; // when TASK_FETCH_UNPACK
     } fetch;
+    /* Max retry number and timeout before give up fetching */
+    int fetch_retries;
+    int fetch_interval;
+    /* Flag indicating that abort the entire recipe if fetch fail */
+    gboolean abort_recipe_when_fetch_fail;
     /* Whether to keep task changes */
     gboolean keepchanges;
     gboolean ssl_verify;

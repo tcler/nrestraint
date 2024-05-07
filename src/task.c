@@ -98,6 +98,24 @@ refresh_role_retry (gpointer user_data)
     return FALSE;
 }
 
+static void
+set_abort_recipe(Task *task)
+{
+    char cmd[PATH_MAX] = { 0 };
+    snprintf(cmd, PATH_MAX-1, "echo %s_fetch-fail >/tmp/abort_recipe_%s",
+            task->name, task->recipe->recipe_id);
+    (void)!system(cmd);
+}
+
+static gboolean
+get_abort_recipe(Task *task)
+{
+    gchar abort_recipe_file[PATH_MAX] = { 0 };
+    snprintf(abort_recipe_file, PATH_MAX-1, "/tmp/abort_recipe_%s",
+             task->recipe->recipe_id);
+    return g_file_test(abort_recipe_file, G_FILE_TEST_EXISTS);
+}
+
 void
 fetch_finish_callback (GError *error, guint32 match_cnt,
                        guint32 nonmatch_cnt, gpointer user_data)
@@ -107,15 +125,24 @@ fetch_finish_callback (GError *error, guint32 match_cnt,
     GString *message = g_string_new (NULL);
 
     if (error) {
-        if (app_data->fetch_retries < TASK_FETCH_RETRIES) {
+        if (app_data->fetch_retries < task->fetch_retries) {
             g_warning("* RETRY fetch [%d]**:%s\n", ++app_data->fetch_retries,
                     error->message);
             g_clear_error(&error);
-            g_timeout_add_seconds (TASK_FETCH_INTERVAL, fetch_retry, app_data);
+            g_timeout_add_seconds (task->fetch_interval, fetch_retry, app_data);
             return;
         } else {
             g_propagate_error (&task->error, error);
             task->state = TASK_COMPLETE;
+
+            /*
+	     * for issue github.com/restraint-harness/restraint/issues/288
+	     * if user declared in task <fetch url="$url abort[_recipe_when_fetch_fail]">
+	     * create file: /tmp/abort_recipe_$recipe_id to notify subsequent tasks
+	     */
+            if (task->abort_recipe_when_fetch_fail) {
+                set_abort_recipe(task);
+            }
         }
     } else {
         task->state = TASK_METADATA_PARSE;
@@ -140,6 +167,18 @@ restraint_task_fetch(AppData *app_data) {
     g_return_if_fail(app_data != NULL);
     GError *error = NULL;
     Task *task = (Task *) app_data->tasks->data;
+
+    /* Abandon subsequent tasks, if critical task fetching or execution fails */
+    if (get_abort_recipe(task)) {
+        g_set_error (&error, RESTRAINT_ERROR,
+                     RESTRAINT_TASK_RUNNER_ABORTED,
+                     "Task for test-prepare fetch fail");
+        task->fetch_retries = 0;
+        task->fetch_interval = 0.1;
+        fetch_finish_callback (error, 0, 0, app_data);
+        g_return_if_reached();
+        return;
+    }
 
     switch (task->fetch_method) {
         case TASK_FETCH_UNPACK:
@@ -438,6 +477,14 @@ void dependency_finish_cb (gpointer user_data, GError *error)
     if (error) {
         g_propagate_error(&task->error, error);
         task->state = TASK_COMPLETE;
+        /*
+	 * for issue github.com/restraint-harness/restraint/issues/288
+	 * if user declared in task <fetch url="$url abort[_recipe_when_fetch_fail]">
+	 * create file: /tmp/abort_recipe_$recipe_id to notify subsequent tasks
+	 */
+        if (task->abort_recipe_when_fetch_fail) {
+            set_abort_recipe(task);
+        }
     } else {
         task->state = TASK_RUN;
     }

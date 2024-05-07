@@ -1,0 +1,7 @@
+#!/bin/bash
+
+#create file "/tmp/abort_recipe_$RECIPEID" to notify subsequent tasks in same
+#recipe to abort without do anything.
+#restraintd program will check whether this file exists before prepare each task
+#if exists then quit immediately.
+touch /tmp/abort_recipe_${RECIPEID:-$RSTRNT_RECIPEID}

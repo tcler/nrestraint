@@ -1,4 +1,6 @@
-FILES := rstrnt-backup rstrnt-restore rstrnt-prepare-reboot rstrnt-reboot check_beaker rstrnt-package rstrnt-sync-set rstrnt-sync-block
+FILES := rstrnt-backup rstrnt-restore rstrnt-prepare-reboot rstrnt-reboot check_beaker rstrnt-package rstrnt-sync-set \
+	 rstrnt-sync-block rstrnt-set-abort-recipe
+
 
 .PHONY: all
 all:

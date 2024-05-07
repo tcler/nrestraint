@@ -331,6 +331,7 @@ fi
 %attr(0755, root, root)%{_bindir}/rstrnt-abort
 %attr(0755, root, root)%{_bindir}/rstrnt-sync
 %attr(0755, root, root)%{_bindir}/rstrnt-package
+%attr(0755, root, root)%{_bindir}/rstrnt-set-abort-recipe
 /usr/share/%{name}/plugins/run_plugins
 /usr/share/%{name}/plugins/run_task_plugins
 /usr/share/%{name}/plugins/helpers

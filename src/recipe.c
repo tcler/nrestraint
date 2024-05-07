@@ -199,6 +199,47 @@ error:
     return NULL;
 }
 
+static void parse_fetch_options(gchar *fetch_opts, Task *task)
+{
+    gint i, j;
+    gchar **opts, **optsj, *token, *tokenj;
+
+    if (fetch_opts == NULL)
+        return;
+
+    opts = g_strsplit(fetch_opts, " ", 0);
+    for (i = 0; token = opts[i], token != NULL; i++) {
+        optsj = g_strsplit(token, ",", 0);
+        for (j = 0; tokenj = optsj[j], tokenj != NULL; j++) {
+            if (0 == strncmp("retry=", tokenj, 6)) {
+                task->fetch_retries = atoi(&tokenj[6]);
+                if (task->fetch_retries <= 0) {
+                    task->fetch_retries = TASK_FETCH_RETRIES;
+                }
+            } else if (0 == strncmp("timeo=", tokenj, 6)) {
+                task->fetch_interval = atoi(&tokenj[6]);
+                if (task->fetch_interval <= 0) {
+                    task->fetch_interval = TASK_FETCH_INTERVAL;
+                }
+            } else if (0 == strncmp("abort_recipe_when_fetch_fail", tokenj, 5)) {
+                task->abort_recipe_when_fetch_fail = TRUE;
+            } else if (0 == strncmp("keepchanges", tokenj, 11)) {
+                task->keepchanges = TRUE;
+            }
+        }
+        g_strfreev(optsj);
+    }
+    g_strfreev(opts);
+}
+
+static void check_param_fetch_opts(Param *param, Task *task)
+{
+    g_return_if_fail (param != NULL && task != NULL);
+    if (STREQ(param->name, "_fetch_opts")) {
+        parse_fetch_options(param->value, task);
+    }
+}
+
 static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
     g_return_val_if_fail(task_node != NULL, NULL);
     g_return_val_if_fail(error == NULL || *error == NULL, NULL);
@@ -208,6 +249,8 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
     g_return_val_if_fail(task != NULL, NULL);
 
     task->recipe = recipe;
+    task->fetch_retries = TASK_FETCH_RETRIES;
+    task->fetch_interval = TASK_FETCH_INTERVAL;
     xmlChar *task_name = xmlGetNoNsProp(task_node, (xmlChar *)"name");
     task->name = g_strdup((gchar *)task_name);
     xmlFree (task_name);
@@ -217,6 +260,12 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
         task->keepchanges = TRUE;
     }
     xmlFree(keepchanges);
+
+    xmlChar *fetch_opts = xmlGetNoNsProp(task_node, (xmlChar *)"fetch_opts");
+    if (fetch_opts != NULL) {
+        parse_fetch_options((gchar *)fetch_opts, task);
+        xmlFree(fetch_opts);
+    }
 
     xmlChar *task_id = xmlGetNoNsProp(task_node, (xmlChar *)"id");
     if (task_id == NULL) {
@@ -239,8 +288,8 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
                     task->task_id);
             goto error;
         }
-        task->fetch.url = soup_uri_new((char *)url);
 
+        task->fetch.url = soup_uri_new((char *)url);
         if (task->fetch.url == NULL) {
             unrecognised("'%s' from task %s is not a valid url", url,
                          task->task_id);
@@ -291,6 +340,7 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
     xmlNode *params_node = first_child_with_name(task_node, "params", FALSE);
     if (params_node != NULL) {
         task->params = parse_params(params_node, &tmp_error);
+        g_list_foreach (task->params, (GFunc)check_param_fetch_opts, task);
         /* params could be empty, but if parsing causes an error then fail */
         if (tmp_error != NULL) {
             g_propagate_prefixed_error(error, tmp_error,
@@ -402,6 +452,14 @@ void restraint_recipe_free(Recipe *recipe) {
     g_slice_free(Recipe, recipe);
 }
 
+static void
+clear_abort_recipe(Recipe *recipe)
+{
+    char cmd[PATH_MAX] = { 0 };
+    snprintf(cmd, PATH_MAX-1, "rm -f /tmp/abort_recipe_%s", recipe->recipe_id);
+    (void)!system(cmd);
+}
+
 static Recipe *
 recipe_parse (xmlDoc *doc, SoupURI *recipe_uri, GError **error, gchar **cfg_file)
 {
@@ -432,6 +490,9 @@ recipe_parse (xmlDoc *doc, SoupURI *recipe_uri, GError **error, gchar **cfg_file
     result->osmajor = get_attribute(recipe, "family");
     result->osvariant = get_attribute(recipe, "variant");
     result->owner = get_attribute(job, "owner");
+
+    /* remove possible abort_recipe_<recipe-id> file at recipe beginning */
+    clear_abort_recipe(result);
 
     if (recipe_uri == NULL) {
         gchar *tmp_str;
