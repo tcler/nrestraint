@@ -80,6 +80,8 @@ typedef struct RstrntTask {
     /* Task name, populated from task metadata if Beaker doesn't tell us */
     gchar *name;
     /* Filesystem path where the task is unpacked */
+    gchar *reponame;
+    gchar *rootpath;
     gchar *path;
     /* How to fetch this task */
     TaskFetchMethod fetch_method;

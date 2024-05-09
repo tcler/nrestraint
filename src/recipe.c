@@ -306,11 +306,22 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
         }
         xmlFree(ssl_verify);
 
-        task->path = g_build_filename(task->recipe->base_path,
+        task->rootpath = g_build_filename(task->recipe->base_path,
                 task->fetch.url->host,
                 task->fetch.url->path,
+                NULL);
+        task->path = g_build_filename(task->rootpath,
                 task->fetch.url->fragment,
                 NULL);
+
+        gchar **task_paths;
+        task_paths = g_strsplit(task->name, "/", 0);
+        task->reponame = g_strdup((gchar *)task_paths[1]);
+        g_strfreev(task_paths);
+        GFile *linkf = g_file_new_build_filename(task->recipe->base_path, task->reponame, NULL);
+        if (!g_file_test(task->recipe->base_path, G_FILE_TEST_EXISTS|G_FILE_TEST_IS_DIR))
+            g_mkdir_with_parents(task->recipe->base_path, 0775);
+        g_file_make_symbolic_link(linkf, task->rootpath, NULL, NULL);
     } else {
         task->fetch_method = TASK_FETCH_INSTALL_PACKAGE;
         xmlNode *rpm = first_child_with_name(task_node, "rpm", FALSE);
