@@ -223,8 +223,8 @@ static void parse_fetch_options(gchar *fetch_opts, Task *task)
                 }
             } else if (0 == strncmp("abort_recipe_when_fetch_fail", tokenj, 5)) {
                 task->abort_recipe_when_fetch_fail = TRUE;
-            } else if (0 == strncmp("keepchanges", tokenj, 11)) {
-                task->keepchanges = TRUE;
+            } else if (0 == strncmp("keepchanges=no", tokenj, 14)) {
+                task->keepchanges = FALSE;
             }
         }
         g_strfreev(optsj);
@@ -251,13 +251,14 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
     task->recipe = recipe;
     task->fetch_retries = TASK_FETCH_RETRIES;
     task->fetch_interval = TASK_FETCH_INTERVAL;
+    task->keepchanges = TRUE;
     xmlChar *task_name = xmlGetNoNsProp(task_node, (xmlChar *)"name");
     task->name = g_strdup((gchar *)task_name);
     xmlFree (task_name);
 
     xmlChar *keepchanges = xmlGetNoNsProp(task_node, (xmlChar *)"keepchanges");
-    if (g_strcmp0((gchar *)keepchanges, "yes") == 0) {
-        task->keepchanges = TRUE;
+    if (g_strcmp0((gchar *)keepchanges, "no") == 0) {
+        task->keepchanges = FALSE;
     }
     xmlFree(keepchanges);
 
