@@ -1171,9 +1171,14 @@ task_handler (gpointer user_data)
               // If neither started nor finished then fetch the task
               restraint_task_status (task, app_data, "Running", NULL, NULL);
               result = G_SOURCE_REMOVE;
-              g_string_printf(message, "** Fetching task: %s [%s]\n", task->task_id, task->path);
-              app_data->fetch_retries = 0;
-              task->state = TASK_FETCH;
+              if (task->keepchanges && file_exists(g_build_filename(task->rootpath, "fetch.done", NULL))) {
+                  g_string_printf(message, "** Fetching skip: %s [%s]\n", task->task_id, task->path);
+                  task->state = TASK_METADATA_PARSE;
+              } else {
+                  g_string_printf(message, "** Fetching task: %s [%s]\n", task->task_id, task->path);
+                  app_data->fetch_retries = 0;
+                  task->state = TASK_FETCH;
+              }
           }
       } else {
           task->state = TASK_COMPLETE;

@@ -71,6 +71,4 @@ typedef enum {
 #define RESTRAINT_FETCH_LIBARCHIVE_ERROR restraint_fetch_libarchive_error()
 GQuark restraint_fetch_libarchive_error(void);
 
-int rmrf(const char *path);
-
 #endif

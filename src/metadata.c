@@ -175,12 +175,23 @@ restraint_parse_metadata (gchar *filename,
     }
     g_clear_error (&tmp_error);
 
-    gchar **repodeps = g_key_file_get_locale_string_list(keyfile,
-                                                         "restraint",
-                                                         "repoRequires",
-                                                         locale,
-                                                         &length,
-                                                         &tmp_error);
+    gboolean skip_repodeps = FALSE;
+    GFile *gf = g_file_get_parent(g_file_new_for_path(filename));
+    while((gf = g_file_get_parent(gf))) {
+        if (file_exists(g_build_filename(g_file_get_path(gf), "fetch.done", NULL))) {
+            skip_repodeps = TRUE;
+            break;
+        }
+    }
+    gchar **repodeps = NULL;
+    if (!skip_repodeps) {
+        repodeps = g_key_file_get_locale_string_list(keyfile,
+                                                     "restraint",
+                                                     "repoRequires",
+                                                     locale,
+                                                     &length,
+                                                     &tmp_error);
+    }
     gchar **repodep = repodeps;
     if (repodep) {
       while (*repodep) {
@@ -536,7 +547,8 @@ gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
         ret = TRUE;
         *metadata = restraint_parse_testinfo(testinfo_file, &error);
         finish_cb(user_data, error);
-    } else {
+    } else if (file_exists(g_build_filename(path, "Makefile", NULL)) || \
+               file_exists(g_build_filename(path, "makefile", NULL))) {
         ret = TRUE;
 
         const gchar *command = "make testinfo.desc";
@@ -552,6 +564,26 @@ gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
         process_run(command, NULL, path, FALSE, 0,
                     NULL, mktinfo_io_callback, mktinfo_cb,
                     NULL, 0, FALSE, cancellable, mtdata);
+    } else {
+        ret = FALSE;
+        gchar *taskdir = g_strdup(path);
+        MetaData *metadt = g_slice_new0 (MetaData);
+        metadt->name = taskdir;
+        metadt->entry_point = "echo not a test case, skip";
+        g_creat(g_build_filename(taskdir, "fetch.done", NULL), 0775);
+        metadt->max_time = 1800;
+        metadt->dependencies = NULL;
+        metadt->softdependencies = NULL;
+        metadt->repodeps = NULL;
+        metadt->envvars = NULL;
+        Param *env = restraint_param_new();
+        env->name = "RSTRNT_NOPLUGINS";
+        env->value = "1";
+        metadt->envvars = g_slist_prepend(metadt->envvars, env);
+        metadt->use_pty = FALSE;
+        metadt->nolocalwatchdog = TRUE;
+        *metadata = metadt;
+        finish_cb(user_data, error);
     }
 
     g_free (testinfo_file);

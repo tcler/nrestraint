@@ -19,6 +19,8 @@
 #define _RESTRAINT_UTILS_H
 
 #include <glib.h>
+#include <gio/gio.h>
+#include <ftw.h>
 #define BASE10 10
 
 #define CMD_ENV_DIR "/var/lib/restraint"
@@ -39,5 +41,6 @@ guint64 parse_time_string (gchar *time_string, GError **error);
 gboolean file_exists (gchar *filename);
 gchar *get_package_version(gchar *pkg_name, GError **error);
 gchar * get_install_dir(const gchar *filename, GError **error);
+int rmrf(const char *path);
 
 #endif

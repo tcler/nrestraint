@@ -15,6 +15,7 @@
     along with Restraint.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
 #include <glib.h>
@@ -22,6 +23,8 @@
 
 #include <errno.h>
 #include <string.h>
+#include <ftw.h>
+#include <unistd.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <unistd.h>
@@ -257,4 +260,20 @@ get_install_dir_exit:
         g_key_file_free(keyfile);
     }
     return install_dir_value;
+}
+
+static int unlink_cb(const char *fpath, const struct stat *sb,
+                     int typeflag, struct FTW *ftwbuf)
+{
+    int rv = remove(fpath);
+
+    if (rv)
+        g_warning("Failed to remove %s", fpath);
+
+    return rv;
+}
+
+int rmrf(const char *path)
+{
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
 }

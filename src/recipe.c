@@ -322,6 +322,9 @@ static Task *parse_task(xmlNode *task_node, Recipe *recipe, GError **error) {
         GFile *linkf = g_file_new_build_filename(task->recipe->base_path, task->reponame, NULL);
         if (!g_file_test(task->recipe->base_path, G_FILE_TEST_EXISTS|G_FILE_TEST_IS_DIR))
             g_mkdir_with_parents(task->recipe->base_path, 0775);
+        if (g_file_test(g_file_get_path(linkf), G_FILE_TEST_EXISTS|G_FILE_TEST_IS_DIR)) {
+            rmrf(g_file_get_path(linkf));
+        }
         g_file_make_symbolic_link(linkf, task->rootpath, NULL, NULL);
     } else {
         task->fetch_method = TASK_FETCH_INSTALL_PACKAGE;
