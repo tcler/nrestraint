@@ -202,7 +202,7 @@ http_archive_read_callback (gpointer user_data)
                                        g_strstr_len(entry_path, -1, fragment) +
                                        strlen(fragment), NULL);
         } else {
-            newPath = g_build_filename(fetch_data->base_path, entry_path, NULL);
+            newPath = g_build_filename(fetch_data->base_path, strchr(entry_path, '/')+1, NULL);
         }
         archive_entry_set_pathname( entry, newPath );
         g_free(newPath);
