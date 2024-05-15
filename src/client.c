@@ -1183,10 +1183,10 @@ static RecipeData *new_recipe_data(AppData *app_data, gchar *recipe_id)
     recipe_data->body = g_string_new(NULL);
     recipe_data->app_data = app_data;
     recipe_data->cancellable = g_cancellable_new();
-    // Prime the watchdog handler, give us 5 minutes to get things
+    // Prime the watchdog handler, give us 30 minutes to get things
     // going.
     recipe_data->timeout_handler_id = g_timeout_add_seconds_full (G_PRIORITY_DEFAULT,
-                                                                  300,
+                                                                  1800,
                                                                   watchdog_timeout_cb,
                                                                   recipe_data,
                                                                   NULL);
