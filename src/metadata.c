@@ -529,6 +529,32 @@ static void mktinfo_cb(gint pid_result, gboolean localwatchdog,
     g_slice_free(MetadataData, mtdata);
 }
 
+static void join_metadata_dependencies(MetaData *md)
+{
+    /* merge dependencies list into one string */
+    if (md->dependencies) {
+        gchar *dep_list = "";
+        for (GSList *l = md->dependencies; l; l = g_slist_next(l)) {
+            dep_list = g_strconcat(dep_list, l->data, " ", NULL);
+        }
+        /*
+        for (GSList *l = md->dependencies; l; l = g_slist_next(l)) {
+            md->dependencies = g_slist_remove(md->dependencies, l->data);
+        }
+        */
+        md->dependencies = NULL;
+        md->dependencies = g_slist_prepend (md->dependencies, dep_list);
+    }
+    if (md->softdependencies) {
+        gchar *dep_list = "";
+        for (GSList *l = md->softdependencies; l; l = g_slist_next(l)) {
+            dep_list = g_strconcat(dep_list, l->data, " ", NULL);
+        }
+        md->softdependencies = NULL;
+        md->softdependencies = g_slist_prepend (md->softdependencies, dep_list);
+    }
+}
+
 gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
                                 GCancellable *cancellable,
                                 metadata_cb finish_cb,
@@ -542,10 +568,12 @@ gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
     if (file_exists(metadata_file)) {
         ret = FALSE;
         *metadata = restraint_parse_metadata(metadata_file, osmajor, &error);
+        join_metadata_dependencies(*metadata);
         finish_cb(user_data, error);
     } else if (file_exists(testinfo_file)) {
         ret = TRUE;
         *metadata = restraint_parse_testinfo(testinfo_file, &error);
+        join_metadata_dependencies(*metadata);
         finish_cb(user_data, error);
     } else if (file_exists(g_build_filename(path, "Makefile", NULL)) || \
                file_exists(g_build_filename(path, "makefile", NULL))) {

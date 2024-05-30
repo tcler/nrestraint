@@ -176,6 +176,9 @@ static void dependency_batch_install_cb(gint pid_result,
         if (dependency_data->ignore_failed_install == TRUE &&
                 !error && pid_result != 0) {
             // Fall back to one-by-one installation mode
+	    /* Fall back is unnecessary now, because we have added option
+	     * --setopt=strict=0/--ignore-missing to yum/apt
+	     */
 
             if (dependency_data->remove_rpms != NULL) {
                 g_string_free(dependency_data->remove_rpms, TRUE);
@@ -185,7 +188,7 @@ static void dependency_batch_install_cb(gint pid_result,
                 g_string_free(dependency_data->install_rpms, TRUE);
                 dependency_data->install_rpms = NULL;
             }
-            dependency_data->state = DEPENDENCY_SINGLE_RPM;
+            dependency_data->state = DEPENDENCY_DONE;
             dependency_handler(dependency_data);
         } else {
             g_string_free(dependency_data->install_rpms, TRUE);

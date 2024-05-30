@@ -47,11 +47,15 @@ pkg_remove=${RSTRNT_PKG_REMOVE:-remove}
 retry=${RSTRNT_PKG_RETRIES:-5}
 delay=${RSTRNT_PKG_DELAY:-1}
 
+[[ "$pkg_cmd" =~ yum|dnf ]] && pkg_args+=" --setopt=strict=0"
+[[ "$pkg_cmd" = apt* ]] && pkg_args+=" --ignore-missing"
+
 _pkg_cmd() {
     opr=$1
     success=1
     try=0
     while [ $try -lt $retry ]; do
+        echo "[run] $pkg_cmd $pkg_args $opr $package"
         $pkg_cmd $pkg_args $opr $package
         if [ $? -eq 0 ]; then
             success=0
