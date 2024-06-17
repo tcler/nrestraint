@@ -39,11 +39,14 @@ typedef void (*ArchiveEntryCallback) (const gchar *entry,
 typedef struct {
     gchar buf[LARGE_PACKET_MAX];
     SoupURI *url;
+    const gchar *jobid;
     const gchar *base_path;
     GSocketConnection *connection;
     GSocketClient *client;
     GInputStream *istream;
     GOutputStream *ostream;
+    gchar *download_path;
+    FILE *download_fhandle;
     struct archive *a;
     struct archive *ext;
     FetchFinishCallback finish_callback;

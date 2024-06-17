@@ -500,7 +500,7 @@ restraint_fetch_repodeps(DependencyData *dependency_data)
                                 dependency_data->keepchanges, repo_dep_data_archive_callback,
                                 fetch_repodeps_finish_callback, rd_data);
         } else {
-            restraint_fetch_uri(rd_data->url, rd_data->path,
+            restraint_fetch_uri(dependency_data->jobid, rd_data->url, rd_data->path,
                                  dependency_data->keepchanges, dependency_data->ssl_verify, repo_dep_data_archive_callback,
                                  fetch_repodeps_finish_callback, rd_data);
         }
@@ -549,6 +549,7 @@ restraint_install_dependencies (Task *task,
 {
     DependencyData *dependency_data;
     dependency_data = g_slice_new0 (DependencyData);
+    dependency_data->jobid = task->recipe->job_id;
     dependency_data->user_data = user_data;
     dependency_data->dependencies = task->metadata->dependencies;
     dependency_data->softdependencies = task->metadata->softdependencies;

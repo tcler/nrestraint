@@ -20,7 +20,8 @@
 
 #include <libsoup/soup.h>
 
-void restraint_fetch_uri(SoupURI *url,
+void restraint_fetch_uri(const gchar *jobid,
+                     SoupURI *url,
                      const gchar *base_path,
                      gboolean keepchanges,
                      gboolean ssl_verify,

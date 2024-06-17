@@ -42,17 +42,24 @@ struct socket_data {
     int ev;
 };
 
+/*
 static size_t cwrite_callback(char *ptr, size_t size, size_t nmemb,
                               void *userdata)
 {
     GMemoryInputStream *stream = (GMemoryInputStream *)userdata;
-
     g_memory_input_stream_add_data(stream, g_memdup(ptr, size * nmemb),
                                    size * nmemb, g_free);
-
     return size * nmemb;
 }
+*/
 
+static size_t cwrite_cb(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
+    return written;
+}
+
+/*
 static ssize_t
 myread(struct archive *a, void *client_data, const void **abuf)
 {
@@ -72,6 +79,7 @@ myread(struct archive *a, void *client_data, const void **abuf)
 
     return len;
 }
+*/
 
 static gboolean
 myopen(FetchData *fetch_data, GError **error)
@@ -84,10 +92,21 @@ myopen(FetchData *fetch_data, GError **error)
     CURL *curl = curl_easy_init();
     gchar *uri = soup_uri_to_string(fetch_data->url, FALSE);
 
-    fetch_data->istream = g_memory_input_stream_new();
+    if (file_exists(fetch_data->download_path)) {
+        /* Yes, should add/call a new log function..
+	 * but I'm too lazy to refactor the code.
+	 * so use the archive_entry_callback() to add this debug log */
+        fetch_data->archive_entry_callback(
+                        g_strdup_printf("[debug] %s already downloaded, ignore fetching", fetch_data->download_path),
+                        fetch_data->user_data);
+        return TRUE;
+    } else {
+        g_mkdir_with_parents(g_path_get_dirname(fetch_data->download_path), 0775);
+    }
+    fetch_data->download_fhandle = fopen(fetch_data->download_path, "wb");
     curl_easy_setopt(curl, CURLOPT_URL, uri);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cwrite_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_data->istream);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cwrite_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fetch_data->download_fhandle);
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, fetch_data->curl_error_buf);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 
@@ -98,16 +117,16 @@ myopen(FetchData *fetch_data, GError **error)
     }
 
     res = curl_multi_add_handle(curlm, curl);
-
     if (res != CURLM_OK) {
         g_set_error(error, RESTRAINT_FETCH_LIBARCHIVE_ERROR, 0,
-                "Failed to fetch url: %s", fetch_data->curl_error_buf);
+                "[curl_multi_add_handle] Failed to fetch url: %s", fetch_data->curl_error_buf);
         return FALSE;
     }
 
     return TRUE;
 }
 
+/*
 static int
 myclose(struct archive *a, void *client_data)
 {
@@ -124,6 +143,7 @@ myclose(struct archive *a, void *client_data)
     }
     return ARCHIVE_OK;
 }
+*/
 
 static gboolean
 archive_finish_callback (gpointer user_data)
@@ -377,8 +397,13 @@ static gboolean start_unpack(gpointer data)
         return TRUE;
     }
 
+    if (fetch_data->download_fhandle)
+        fclose(fetch_data->download_fhandle);
+    fetch_data->download_fhandle = NULL;
+
     gint r;
-    r = archive_read_open(fetch_data->a, fetch_data, NULL, myread, myclose);
+    //r = archive_read_open(fetch_data->a, fetch_data, NULL, myread, myclose);
+    r = archive_read_open_filename(fetch_data->a, fetch_data->download_path, 10240);
     if (r != ARCHIVE_OK) {
         g_set_error(&fetch_data->error, RESTRAINT_FETCH_LIBARCHIVE_ERROR, r,
                 "archive_read_open failed: %s", archive_error_string(fetch_data->a));
@@ -390,7 +415,8 @@ static gboolean start_unpack(gpointer data)
 }
 
 void
-restraint_fetch_uri (SoupURI *url,
+restraint_fetch_uri (const gchar *jobid,
+                     SoupURI *url,
                      const gchar *base_path,
                      gboolean keepchanges,
                      gboolean ssl_verify,
@@ -406,6 +432,7 @@ restraint_fetch_uri (SoupURI *url,
     fetch_data->finish_callback = finish_callback;
     fetch_data->user_data = user_data;
     fetch_data->url = url;
+    fetch_data->jobid = jobid;
     fetch_data->base_path = base_path;
     fetch_data->match_cnt = 0;
     fetch_data->keepchanges = keepchanges;
@@ -416,6 +443,12 @@ restraint_fetch_uri (SoupURI *url,
     if (keepchanges == FALSE) {
         rmrf(base_path);
     }
+
+    fetch_data->download_path = g_build_filename("/fetch/job",
+                                             fetch_data->jobid,
+                                             fetch_data->url->host,
+                                             fetch_data->url->path,
+                                             NULL);
 
     fetch_data->a = archive_read_new();
     if (fetch_data->a == NULL) {
@@ -440,7 +473,7 @@ restraint_fetch_uri (SoupURI *url,
 
     if (cd->curlm == NULL) {
         g_set_error(&fetch_data->error, RESTRAINT_FETCH_LIBARCHIVE_ERROR, 0,
-                "failed to init curl");
+                "[curl_multi_init] failed to init curl");
         g_idle_add (archive_finish_callback, fetch_data);
         return;
     }

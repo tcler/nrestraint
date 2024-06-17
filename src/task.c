@@ -55,8 +55,13 @@ archive_entry_callback (const gchar *entry, gpointer user_data)
 {
     AppData *app_data = (AppData *) user_data;
     GString *message = g_string_new (NULL);
+    char *prefix = "[debug]";
 
-    g_string_printf (message, "** Extracting %s\n", entry);
+    if (strncmp(entry, prefix, strlen(prefix)) == 0) {
+        g_string_printf (message, "%s\n", entry);
+    } else {
+        g_string_printf (message, "** Extracting %s\n", entry);
+    }
     restraint_log_task (app_data, RSTRNT_LOG_TYPE_HARNESS, message->str, message->len);
     g_string_free (message, TRUE);
 }
@@ -194,7 +199,8 @@ restraint_task_fetch(AppData *app_data) {
             } else if (g_strcmp0(scheme, "http") == 0 ||
                        g_strcmp0(scheme, "https") == 0  ||
                        g_strcmp0(scheme, "file") == 0) {
-                restraint_fetch_uri (task->fetch.url,
+                restraint_fetch_uri (task->recipe->job_id,
+                                      task->fetch.url,
                                       task->path,
                                       task->keepchanges,
                                       task->ssl_verify,

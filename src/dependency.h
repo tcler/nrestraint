@@ -43,6 +43,7 @@ typedef struct {
     gboolean keepchanges;
     const gchar *main_task_name;
     const gchar *base_path;
+    gchar *jobid;
     gboolean ignore_failed_install;
     GIOFunc io_callback;
     ArchiveEntryCallback archive_entry_callback;
