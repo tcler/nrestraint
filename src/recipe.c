@@ -701,6 +701,7 @@ recipe_handler (gpointer user_data)
                 app_data->io_handler_id = 0;
             }
             g_cancellable_reset (app_data->cancellable);
+            rmrf("/var/cache/restraint/fetch_uri");
             break;
         default:
             break;

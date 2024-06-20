@@ -444,8 +444,9 @@ restraint_fetch_uri (const gchar *jobid,
         rmrf(base_path);
     }
 
-    fetch_data->download_path = g_build_filename("/fetch/job",
-                                             fetch_data->jobid,
+    fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
+                                             /* g_strdup_printf("fetch-J:%s", fetch_data->jobid), */
+                                             "fetch-uri",
                                              fetch_data->url->host,
                                              fetch_data->url->path,
                                              NULL);
