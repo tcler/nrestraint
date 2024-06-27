@@ -597,7 +597,7 @@ gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
         gchar *taskdir = g_strdup(path);
         MetaData *metadt = g_slice_new0 (MetaData);
         metadt->name = taskdir;
-        metadt->entry_point = "echo not a test case, skip";
+        metadt->entry_point = g_strdup("echo not a test case, skip");
         g_creat(g_build_filename(taskdir, "fetch.done", NULL), 0775);
         metadt->max_time = 1800;
         metadt->dependencies = NULL;
@@ -605,8 +605,8 @@ gboolean restraint_get_metadata(char *path, char *osmajor, MetaData **metadata,
         metadt->repodeps = NULL;
         metadt->envvars = NULL;
         Param *env = restraint_param_new();
-        env->name = "RSTRNT_NOPLUGINS";
-        env->value = "1";
+        env->name = g_strdup("RSTRNT_NOPLUGINS");
+        env->value = g_strdup("1");
         metadt->envvars = g_slist_prepend(metadt->envvars, env);
         metadt->use_pty = FALSE;
         metadt->nolocalwatchdog = TRUE;
