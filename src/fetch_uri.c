@@ -94,8 +94,8 @@ myopen(FetchData *fetch_data, GError **error)
 
     if (file_exists(fetch_data->download_path)) {
         /* Yes, should add/call a new log function..
-	 * but I'm too lazy to refactor the code.
-	 * so use the archive_entry_callback() to add this debug log */
+         * but I'm too lazy to refactor the code.
+         * so use the archive_entry_callback() to add this debug log */
         fetch_data->archive_entry_callback(
                         g_strdup_printf("[debug] %s already downloaded, ignore fetching", fetch_data->download_path),
                         fetch_data->user_data);
@@ -444,12 +444,31 @@ restraint_fetch_uri (const gchar *jobid,
         rmrf(base_path);
     }
 
-    fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
-                                             /* g_strdup_printf("fetch-J:%s", fetch_data->jobid), */
+    GHashTable *params;
+    const gchar* query_s = soup_uri_get_query(url);
+    if (query_s != NULL)
+        params = soup_form_decode(query_s);
+    else
+        params = soup_form_decode("");
+    gchar *qpath = g_strdup(g_hash_table_lookup(params, "path"));
+    if (qpath == NULL) {
+        fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
                                              "fetch-uri",
                                              fetch_data->url->host,
                                              fetch_data->url->path,
                                              NULL);
+    } else {
+        gchar *dirname = g_path_get_dirname(fetch_data->url->path);
+        gchar *basename = g_path_get_basename(fetch_data->url->path);
+        fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
+                                             "fetch-uri",
+                                             fetch_data->url->host,
+                                             dirname,
+                                             qpath,
+                                             basename,
+                                             NULL);
+    }
+    g_hash_table_destroy(params);
 
     fetch_data->a = archive_read_new();
     if (fetch_data->a == NULL) {
