@@ -444,12 +444,24 @@ restraint_fetch_uri (const gchar *jobid,
         rmrf(base_path);
     }
 
-    fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
-                                             /* g_strdup_printf("fetch-J:%s", fetch_data->jobid), */
+    GHashTable *params;
+    params = soup_form_decode(soup_uri_get_query(url));
+    gchar *qpath = g_strdup(g_hash_table_lookup(params, "path"));
+    g_hash_table_destroy(params);
+    if (qpath == NULL) {
+        fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
                                              "fetch-uri",
                                              fetch_data->url->host,
                                              fetch_data->url->path,
                                              NULL);
+    } else {
+        fetch_data->download_path = g_build_filename("/var/cache/nrestraint",
+                                             "fetch-uri",
+                                             fetch_data->url->host,
+                                             fetch_data->url->path,
+					     qpath,
+                                             NULL);
+    }
 
     fetch_data->a = archive_read_new();
     if (fetch_data->a == NULL) {
