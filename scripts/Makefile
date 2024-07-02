@@ -1,5 +1,5 @@
 FILES := rstrnt-backup rstrnt-restore rstrnt-prepare-reboot rstrnt-reboot check_beaker rstrnt-package rstrnt-sync-set \
-	 rstrnt-sync-block rstrnt-set-abort-recipe
+	 rstrnt-sync-block rstrnt-set-abort-recipe curl-download.sh extract.sh
 
 
 .PHONY: all

@@ -332,6 +332,8 @@ fi
 %attr(0755, root, root)%{_bindir}/rstrnt-sync
 %attr(0755, root, root)%{_bindir}/rstrnt-package
 %attr(0755, root, root)%{_bindir}/rstrnt-set-abort-recipe
+%attr(0755, root, root)%{_bindir}/curl-download.sh
+%attr(0755, root, root)%{_bindir}/extract.sh
 /usr/share/%{name}/plugins/run_plugins
 /usr/share/%{name}/plugins/run_task_plugins
 /usr/share/%{name}/plugins/helpers
