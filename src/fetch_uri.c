@@ -191,10 +191,27 @@ http_archive_read_callback (gpointer user_data)
 
     gint r;
     struct archive_entry *entry;
-    gchar *newPath = NULL;
+    gchar *targetPath = NULL;
 
     r = archive_read_next_header(fetch_data->a, &entry);
     if (r == ARCHIVE_EOF) {
+        if (fetch_data->match_cnt == 0 && fetch_data->keepchanges &&
+                g_file_test(fetch_data->base_path, /* /mnt/tests/$host/$path/$fragment */
+                            G_FILE_TEST_EXISTS|G_FILE_TEST_IS_DIR)) {
+            GDir *dir;
+            GError *error;
+            const gchar *filename;
+            dir = g_dir_open(fetch_data->base_path, 0, &error);
+            while ((filename = g_dir_read_name(dir)))
+                fetch_data->match_cnt++;
+            g_dir_close(dir);
+            fetch_data->archive_entry_callback(
+                        g_strdup_printf("[debug] no matches in archive %s\n"
+				        "`-but: keepchanges is enabled and path %s exist",
+					fetch_data->download_path,
+					fetch_data->base_path),
+                        fetch_data->user_data);
+        }
         if (fetch_data->match_cnt == 0) {
             g_set_error(&fetch_data->error, RESTRAINT_FETCH_LIBARCHIVE_ERROR, ARCHIVE_WARN,
                     "Nothing was extracted from archive");
@@ -212,23 +229,23 @@ http_archive_read_callback (gpointer user_data)
 
     const gchar *fragment = fetch_data->url->fragment;
     const gchar *entry_path = archive_entry_pathname(entry);
+
+    //if entry_path match test-case-path(the fragment)
     if (fragment == NULL || (g_strstr_len(entry_path, -1, fragment) != NULL &&
             !(fragment[strlen(fragment)] != '/' && strlen(entry_path) ==
                 strlen(fragment) + 1))
             ) {
-        // Update pathname
         if (fragment != NULL) {
-            newPath = g_build_filename(fetch_data->base_path,
+            targetPath = g_build_filename(fetch_data->base_path, /* /mnt/tests/$host/$path/$fragment */
                                        g_strstr_len(entry_path, -1, fragment) +
                                        strlen(fragment), NULL);
         } else {
-            newPath = g_build_filename(fetch_data->base_path, strchr(entry_path, '/')+1, NULL);
+            targetPath = g_build_filename(fetch_data->base_path, strchr(entry_path, '/')+1, NULL);
         }
-        archive_entry_set_pathname( entry, newPath );
-        g_free(newPath);
+        archive_entry_set_pathname( entry, targetPath );
 
         if (fetch_data->keepchanges == FALSE ||
-                access(archive_entry_pathname(entry), F_OK) == -1) {
+                !g_file_test(targetPath, G_FILE_TEST_EXISTS)) {
             r = archive_read_extract2(fetch_data->a, entry, fetch_data->ext);
             if (r != ARCHIVE_OK) {
                 g_set_error(&fetch_data->error, RESTRAINT_FETCH_LIBARCHIVE_ERROR, r,
@@ -251,6 +268,7 @@ http_archive_read_callback (gpointer user_data)
                                                     fetch_data->user_data);
             }
         }
+        g_free(targetPath);
         fetch_data->match_cnt++;
     } else {
         fetch_data->nonmatch_cnt++;
