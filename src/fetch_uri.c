@@ -485,6 +485,31 @@ restraint_fetch_uri (const gchar *jobid,
                                              qpath,
                                              basename,
                                              NULL);
+
+        //find maybe existed archive file in parents dir
+        gchar *afile = NULL;
+        gchar *qdir = g_strdup(qpath);
+        do {
+            gchar *qpdir = g_path_get_dirname(qdir);
+            qdir = qpdir;
+            afile = g_build_filename("/var/cache/nrestraint",
+                                     "fetch-uri",
+                                     fetch_data->url->host,
+                                     dirname,
+                                     qpdir,
+                                     basename,
+                                     NULL);
+            if (file_exists(afile)) {
+                break;
+            } else {
+                g_free(afile);
+                afile = NULL;
+            }
+        } while (g_str_equal(qdir, ".") || g_str_equal(qdir, "/"));
+        if (afile) {
+            g_mkdir_with_parents(g_path_get_dirname(fetch_data->download_path), 0775);
+            (void)!link(afile, fetch_data->download_path);
+        }
     }
     g_hash_table_destroy(params);
 
