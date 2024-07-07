@@ -500,6 +500,8 @@ restraint_fetch_repodeps(DependencyData *dependency_data)
                                 dependency_data->keepchanges, repo_dep_data_archive_callback,
                                 fetch_repodeps_finish_callback, rd_data);
         } else {
+            gchar *query_path = g_strdup_printf("path=%s", rd_data->url->fragment);
+            soup_uri_set_query(rd_data->url, query_path);
             restraint_fetch_uri(dependency_data->jobid, rd_data->url, rd_data->path,
                                  dependency_data->keepchanges, dependency_data->ssl_verify, repo_dep_data_archive_callback,
                                  fetch_repodeps_finish_callback, rd_data);
