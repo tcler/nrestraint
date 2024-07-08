@@ -169,6 +169,9 @@ archive_finish_callback (gpointer user_data)
             g_warning("Failed to free archive_read");
     }
 
+    if (fetch_data->error) {
+        (void)!unlink(fetch_data->download_path);
+    }
     if (fetch_data->finish_callback) {
         fetch_data->finish_callback (fetch_data->error,
                                      fetch_data->match_cnt,
