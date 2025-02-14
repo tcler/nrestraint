@@ -9,12 +9,14 @@
 %global with_selinux_policy 0
 %endif
 
-%if 0%{?with_static:1} && 0%{?fedora} >= 40
+%if 0%{?with_static:1}
+%if 0%{?fedora} >= 40 || 0%{?rhel} >= 10
 %global build_type_safety_c 2
+%endif
 %endif
 
 Name:		restraint
-Version:	0.4.5
+Version:	0.4.8
 Release:	1%{?dist}
 Summary:	Simple test harness which can be used with beaker
 
@@ -115,7 +117,7 @@ BuildRequires:  tar
 %{?with_static:BuildRequires: cmake}
 # libselinux Requires.private
 %{?with_static:BuildRequires: libsepol-static}
-%if 0%{?rhel} < 8 || 0%{?centos}
+%if 0%{?rhel} < 8 || 0%{?centos} < 10
 %{?with_static:BuildRequires: pcre-static}
 %else
 %{?with_static:BuildRequires: pcre2-static}
@@ -249,6 +251,12 @@ fi
 popd
 %endif
 
+%if %{with_systemd}
+mkdir -p $RPM_BUILD_ROOT/%{_tmpfilesdir}
+install -m 0644 %{name}.conf $RPM_BUILD_ROOT/%{_tmpfilesdir}/%{name}.conf
+%endif
+
+
 %post
 if [ "$1" -le "1" ] ; then # First install
 %if %{with_systemd}
@@ -346,7 +354,12 @@ fi
 %{_datadir}/selinux/packages/%{name}/restraint.pp
 %endif
 
+%if %{with_systemd}
+# Don't package, systemd will create this on first instance
+%exclude /var/lib/%{name}
+%else
 %dir /var/lib/%{name}
+%endif
 
 %files client
 %attr(0755, root, root)%{_bindir}/%{name}
@@ -365,7 +378,8 @@ fi
 %attr(0755, root, root)%{_bindir}/rhts-lint
 %attr(0755, root, root)%{_bindir}/rhts-report-result
 %attr(0755, root, root)%{_bindir}/rhts-flush
-%config(noreplace)/var/lib/%{name}/install_config
+%dir %{_sysconfdir}/%{name}
+%config(noreplace) %{_sysconfdir}/%{name}/install_config
 
 # Symlinks do not have attributes
 %{_bindir}/rhts-sync-set
@@ -384,8 +398,12 @@ fi
 %{_bindir}/rhts_recipe_sync_block
 %{_bindir}/rhts-abort
 %{_datadir}/rhts/lib/rhts-make.include
+%if %{with_systemd}
+%config %{_tmpfilesdir}/%{name}.conf
+%else
 /mnt/scratchspace
 %attr(1777,root,root)/mnt/testarea
+%endif
 %if 0%{?rhel}%{?fedora} > 4
 %{_datadir}/selinux/packages/%{name}/rhts.pp
 %endif
@@ -394,6 +412,28 @@ fi
 %{__rm} -rf %{buildroot}
 
 %changelog
+* Thu Feb 13 2025 Don Zickus <dzickus@redhat.com> 0.4.8-1
+- Update restraint source to use ETC_PATH instead of VAR_LIB_PATH
+  (bpeck@redhat.com)
+- Update config location for check_beaker (bpeck@redhat.com)
+
+* Mon Feb 03 2025 Don Zickus <dzickus@redhat.com> 0.4.7-1
+- Update dist-git release branches (dzickus@redhat.com)
+- Add support for rhel-10 and centos-stream-10 (dzickus@redhat.com)
+
+* Thu Jan 30 2025 Don Zickus <dzickus@redhat.com> 0.4.6-1
+- Support ostree bootc containers (dzickus@redhat.com)
+- Support ostree mount points for /mnt/scratchspace and testarea
+  (dzickus@redhat.com)
+- ci: use latest available fedora (mart.styk@gmail.com)
+- Fix configuration for Packit 1.0.0 (125959684+packit-public-repos-
+  bot@users.noreply.github.com)
+- Disable setting of FORTIFY_SOURCE if already set for m4 (dzickus@redhat.com)
+- Update github actions to checkout@v3 and upload-artifact@v4
+  (dzickus@redhat.com)
+- Disable Centos7 and centos-stream 8 because they are EOL (dzickus@redhat.com)
+- chore: add info on the Matrix community chat channel (john@sodarock.com)
+
 * Thu Jun 13 2024 Martin Styk <mart.styk@gmail.com> 0.4.5-1
 - Upstream release 0.4.5
   https://restraint.readthedocs.io/en/latest/release-notes.html#restraint-0-4-5
