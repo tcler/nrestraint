@@ -16,7 +16,7 @@
 %endif
 
 Name:		restraint
-Version:	0.4.8
+Version:	0.4.9
 Release:	1%{?dist}
 Summary:	Simple test harness which can be used with beaker
 
@@ -360,6 +360,7 @@ fi
 %else
 %dir /var/lib/%{name}
 %endif
+%dir %{_sysconfdir}/%{name}
 
 %files client
 %attr(0755, root, root)%{_bindir}/%{name}
@@ -378,7 +379,6 @@ fi
 %attr(0755, root, root)%{_bindir}/rhts-lint
 %attr(0755, root, root)%{_bindir}/rhts-report-result
 %attr(0755, root, root)%{_bindir}/rhts-flush
-%dir %{_sysconfdir}/%{name}
 %config(noreplace) %{_sysconfdir}/%{name}/install_config
 
 # Symlinks do not have attributes
@@ -412,6 +412,9 @@ fi
 %{__rm} -rf %{buildroot}
 
 %changelog
+* Mon Feb 17 2025 Don Zickus <dzickus@redhat.com> 0.4.9-1
+- Package /etc/restraint correctly (dzickus@redhat.com)
+
 * Thu Feb 13 2025 Don Zickus <dzickus@redhat.com> 0.4.8-1
 - Update restraint source to use ETC_PATH instead of VAR_LIB_PATH
   (bpeck@redhat.com)

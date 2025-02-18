@@ -1,5 +1,5 @@
 Name:		restraint
-Version:	0.4.8
+Version:	0.4.9
 Release:	1%{?dist}
 Summary:	Simple test harness which can be used with beaker
 
@@ -116,6 +116,7 @@ fi
 /usr/share/%{name}/plugins/task_run.d
 /usr/share/%{name}/pkg_commands.d
 /var/lib/%{name}
+%{_sysconfdir}/%{name}
 %{_datadir}/selinux/packages/%{name}/restraint.pp
 
 %files client
