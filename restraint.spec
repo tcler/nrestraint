@@ -342,6 +342,8 @@ fi
 %attr(0755, root, root)%{_bindir}/rstrnt-set-abort-recipe
 %attr(0755, root, root)%{_bindir}/curl-download.sh
 %attr(0755, root, root)%{_bindir}/extract.sh
+%attr(0755, root, root)%{_bindir}/parseurl.sh
+%attr(0755, root, root)%{_bindir}/rstrnt-prefetch.sh
 /usr/share/%{name}/plugins/run_plugins
 /usr/share/%{name}/plugins/run_task_plugins
 /usr/share/%{name}/plugins/helpers
