@@ -113,7 +113,7 @@ static gboolean handle_rconn(GIOChannel *source, GIOCondition condition,
     send(rsock, buf, rcv, MSG_NOSIGNAL);
     close(rsock);
   } else {
-    struct wentry *w = malloc(sizeof(struct wentry));
+    struct wentry *w = g_new0(struct wentry, 1);
     w->event = g_strdup(buf);
     w->sockfd = rsock;
     sd->wlist = g_slist_prepend(sd->wlist, w);
@@ -337,9 +337,7 @@ int main(int argc, char **argv)
     close(sockfd);
   } else if (g_strcmp0(argv[1], "block") == 0) {
     char buf[BUFSIZE] = "";
-    struct sockaddr_in saddr;
-    struct hostent *he;
-    int sockfd, ret=0, result, bytes=0, time_rcvd=0;
+    int ret=0, result, bytes=0, time_rcvd=0;
     int sockfd=-1;
     fd_set rset;
     struct timeval timeout = { 0, 0 };
@@ -397,8 +395,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    send(sockfd, argv[2], strlen(argv[2]) + 1, 0);
-
+    ssize_t sent = send(sockfd, argv[2], strlen(argv[2]) + 1, 0);
+    if (sent <= 0) {
+        g_fprintf(stderr, "Failed to send event: %s\n", strerror(errno));
+        close(sockfd);
+        return 1;
+    }
     result = 1;
     FD_ZERO(&rset);
     FD_SET(sockfd, &rset);
@@ -432,8 +434,8 @@ int main(int argc, char **argv)
           time(&end_time);
           seconds = difftime(end_time, start_time);
           diff_time = (double)time_rcvd - seconds;
-          timeout.tv_sec = diff_time;
-          timeout.tv_usec = 0;
+          timeout.tv_sec = (time_t)diff_time;
+          if (diff_time < 0) timeout.tv_sec = 0;
         }
     }
     close(sockfd);
