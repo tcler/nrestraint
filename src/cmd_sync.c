@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,7 +93,7 @@ static gboolean handle_rconn(GIOChannel *source, GIOCondition condition,
     close(rsock);
     return TRUE;
   }
-
+  buf[rcv < BUFSIZE ? rcv : BUFSIZE - 1] = '\0';
   /* Verify current sockets are still active */
   for (GSList *l = sd->wlist; l; l = g_slist_next(l)) {
     struct wentry *w = (struct wentry*)l->data;
@@ -154,7 +155,7 @@ static gboolean handle_lconn(GIOChannel *source, GIOCondition condition,
     close(rsock);
     return TRUE;
   }
-
+  buf[rcv < BUFSIZE ? rcv : BUFSIZE - 1] = '\0';
   g_hash_table_add(sd->events, g_strdup(buf));
 
   close(rsock);
@@ -339,12 +340,15 @@ int main(int argc, char **argv)
     struct sockaddr_in saddr;
     struct hostent *he;
     int sockfd, ret=0, result, bytes=0, time_rcvd=0;
+    int sockfd=-1;
     fd_set rset;
     struct timeval timeout = { 0, 0 };
     time_t start_time, end_time;
     double seconds, diff_time=0;
     unsigned int ping_count = 0;
     unsigned int non_match_count = 0;
+    struct addrinfo hints, *res, *rp;
+    int gai_ret;
 
     if (argc < 4) {
       usage(argv[0]);
@@ -359,26 +363,38 @@ int main(int argc, char **argv)
       diff_time = time_rcvd;
     }
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      perror("Failed to open local socket");
-      return 1;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM;/* TCP socket */
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          /* Any protocol */
+
+    if ((gai_ret = getaddrinfo(argv[3], "6776", &hints, &res)) != 0) {
+        g_fprintf(stderr, "Host resolution failed: %s\n", gai_strerror(gai_ret));
+        close(sockfd);
+        return 1;
     }
 
-    he = gethostbyname(argv[3]);
-    if (he == NULL) {
-      g_fprintf(stderr, "Failed to resolve hostname '%s'.\n",
-               argv[3]);
-      return 1;
-    }
-    saddr.sin_family = AF_INET;
-    saddr.sin_port = htons(PORT);
-    memcpy(&(saddr.sin_addr.s_addr), he->h_addr_list[0], he->h_length);
+    int connected = 0;
 
-    if (connect(sockfd, (struct sockaddr*)&saddr, sizeof(saddr)) < 0) {
-      g_fprintf(stderr, "Failed to connect to remote server %s: %s\n",
-                argv[3], strerror(errno));
-      close(sockfd);
-      return 1;
+    for (rp = res; rp != NULL; rp = rp->ai_next) {
+        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sockfd == -1)
+            continue;
+
+        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+            connected = 1;  /* connect successed */
+            break;
+        }
+
+        close(sockfd);  /* connect failed */
+    }
+
+    freeaddrinfo(res);  /* release resource */
+
+    if (!connected) {
+        g_fprintf(stderr, "Failed to connect to %s: %s\n", argv[3], strerror(errno));
+        return 1;
     }
 
     send(sockfd, argv[2], strlen(argv[2]) + 1, 0);
