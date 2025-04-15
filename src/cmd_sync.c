@@ -15,6 +15,7 @@
 #include <glib/gprintf.h>
 #include <glib-unix.h>
 
+#define _POSIX_C_SOURCE 200112L
 #define USOCKET_PATH "/tmp/rstrntsync.sock"
 #define PORT 6776
 #define BUFSIZE 256
