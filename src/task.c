@@ -1246,7 +1246,7 @@ task_handler (gpointer user_data)
       // Install Task Dependencies
       // All dependencies are installed with system package command
       // All repodependencies are installed via fetch_git
-      if (!task->started) {
+      if (!task->started || (task->reboots > 0)) {
           if (!app_data->stdin && recipe_wait_on_beaker (app_data->recipe_url, "** Task dependencies"))
               break;
 
