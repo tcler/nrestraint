@@ -492,26 +492,87 @@ restraint_fetch_uri (const gchar *jobid,
         //find maybe existed archive file in parents dir
         gchar *afile = NULL;
         gchar *qdir = g_strdup(qpath);
-        do {
+        gchar *prev_dir = NULL;  // Used to detect whether it is stable in the root directory
+        int loop_count = 0;      // Safety counter
+        const int MAX_SAFE_LOOPS = 2000; // Absolute upper limit to prevent accidents
+        gboolean continue_loop = (qdir != NULL && *qdir != '\0');
+        while (continue_loop) {
+            loop_count++;
+            if (loop_count > MAX_SAFE_LOOPS) {
+                g_warning("Exceeded maximum directory depth in cache lookup");
+                break;
+            }
             gchar *qpdir = g_path_get_dirname(qdir);
-            qdir = qpdir;
-            afile = g_build_filename("/var/cache/nrestraint",
-                                     "fetch-uri",
-                                     fetch_data->url->host,
-                                     dirname,
-                                     qpdir,
-                                     basename,
-                                     NULL);
+            // Check if a steady state is reached (no more changes)
+            if (prev_dir && g_str_equal(qpdir, prev_dir)) {
+                g_free(qpdir);
+                break;
+            }
+            // Update the previous directory record
+            g_free(prev_dir);
+            prev_dir = g_strdup(qpdir);
+            // Processing the current directory mark
+            if (g_str_equal(qpdir, ".")) {
+                // Build paths directly under the snapshot directory
+                afile = g_build_filename(
+                    "/var/cache/nrestraint",
+                    "fetch-uri",
+                    fetch_data->url->host,
+                    dirname,
+                    basename,
+                    NULL
+                );
+            } else {
+                afile = g_build_filename(
+                    "/var/cache/nrestraint",
+                    "fetch-uri",
+                    fetch_data->url->host,
+                    dirname,
+                    qpdir,
+                    basename,
+                    NULL
+                );
+            }
+            gchar *normalized_path = g_strdup(afile);
+            g_strcanon(normalized_path, G_DIR_SEPARATOR_S, G_DIR_SEPARATOR);
+            g_free(afile);
+            afile = normalized_path;
             if (file_exists(afile)) {
+                g_free(qpdir);
                 break;
             } else {
                 g_free(afile);
                 afile = NULL;
             }
-        } while (g_str_equal(qdir, ".") || g_str_equal(qdir, "/"));
+
+            // Update qdir for next iteration
+            g_free(qdir);
+            qdir = g_strdup(qpdir);
+            g_free(qpdir);
+
+            // Check if we have reached the root directory
+            if (qdir == NULL || *qdir == '\0') {
+                continue_loop = FALSE;
+            } else if (g_str_equal(qdir, "/") || g_str_equal(qdir, ".")) {
+                // Add extra check: if we are already at the root directory, make sure we don't loop infinitely
+                if (prev_dir && g_str_equal(qdir, prev_dir)) {
+                    break;
+                }
+            } else if (strstr(qdir, "..") != NULL) {
+                g_warning("Invalid path component detected: %s", qdir);
+                continue_loop = FALSE;
+            }
+        }
+        // clear memory
+        g_free(prev_dir);
+        g_free(qdir);
         if (afile) {
             g_mkdir_with_parents(g_path_get_dirname(fetch_data->download_path), 0775);
-            (void)!link(afile, fetch_data->download_path);
+            if (link(afile, fetch_data->download_path) != 0) {
+                g_warning("Failed to create hard link: %s -> %s (%s)",
+                          afile, fetch_data->download_path, strerror(errno));
+            }
+            g_free(afile);
         }
     }
     g_hash_table_destroy(params);
@@ -560,3 +621,4 @@ restraint_fetch_uri (const gchar *jobid,
 
     g_timeout_add(500, start_unpack, fetch_data);
 }
+
