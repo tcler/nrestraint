@@ -2,11 +2,12 @@
 
 . /etc/os-release
 
-RSTRNT_PKG_CMD=${RSTRNT_PKG_CMD:-yum}
-if [ 0"$VERSION_ID" -gt 21 ]; then
+if [ -f "/run/ostree-booted" ]; then
+    # OSTree based filesystems are read-only and install with rpm-ostree
+    RSTRNT_PKG_CMD=${RSTRNT_PKG_CMD:-rpm-ostree}
+    RSTRNT_PKG_ARGS=${RSTRNT_PKG_ARGS:-' '}
+    RSTRNT_PKG_INSTALL=${RSTRNT_PKG_INSTALL:-install -y --idempotent --allow-inactive --apply-live}
+elif [ 0"$VERSION_ID" -gt 21 ]; then
     # Fedora 22 and newer use dnf as default
-    RSTRNT_PKG_CMD=dnf
-    if [ -f "/run/ostree-booted" ];then
-        RSTRNT_PKG_ARGS=${RSTRNT_PKG_ARGS:--y --transient}
-    fi
+    RSTRNT_PKG_CMD=${RSTRNT_PKG_CMD:-dnf}
 fi
